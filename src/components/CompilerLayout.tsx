@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { GitHubSidebar } from '@/components/GitHubSidebar';
 import { AIChatPanel } from '@/components/AIChatPanel';
-import { CodeEditor } from '@/components/CodeEditor';
+import { CodeEditor, CodeEditorRef } from '@/components/CodeEditor';
 import { ConsolePanel } from '@/components/ConsolePanel';
 import { useEditorStore } from '@/stores/editorStore';
 import { useTheme } from '@/hooks/useTheme';
@@ -75,7 +75,7 @@ export function CompilerLayout() {
   const [stdinInput, setStdinInput] = useState('');
   const [codeStopperEnabled, setCodeStopperEnabled] = useState(true);
   
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<CodeEditorRef>(null);
   const { isListening, transcript, isSupported, startListening, stopListening, resetTranscript, error: speechError } = useSpeechToText();
 
   const activeTab = tabs.find(t => t.id === activeTabId);
