@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   PanelLeftClose, 
   PanelLeft, 
@@ -11,6 +11,10 @@ import {
   Settings,
   ZoomIn,
   ZoomOut,
+  Mic,
+  MicOff,
+  Shield,
+  ShieldOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,11 +36,18 @@ import { cn } from '@/lib/utils';
 import { languages, getLanguageById } from '@/lib/languages';
 import { Language } from '@/types/compiler';
 import { compileAndRun, JUDGE0_LANGUAGES } from '@/services/judge0';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function CompilerLayout() {
   const { 
@@ -62,6 +73,10 @@ export function CompilerLayout() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('judge0_api_key') || '');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stdinInput, setStdinInput] = useState('');
+  const [codeStopperEnabled, setCodeStopperEnabled] = useState(true);
+  
+  const editorRef = useRef<any>(null);
+  const { isListening, transcript, isSupported, startListening, stopListening, resetTranscript, error: speechError } = useSpeechToText();
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
@@ -175,6 +190,22 @@ export function CompilerLayout() {
     localStorage.setItem('judge0_api_key', key);
   };
 
+  // Handle speech-to-text transcript insertion
+  useEffect(() => {
+    if (transcript && editorRef.current?.insertTextAtCursor) {
+      editorRef.current.insertTextAtCursor(transcript);
+      resetTranscript();
+    }
+  }, [transcript, resetTranscript]);
+
+  const toggleSpeechToText = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Toolbar */}
@@ -233,6 +264,46 @@ export function CompilerLayout() {
               Stop
             </Button>
           )}
+
+          {/* Speech to Text */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={isListening ? 'destructive' : 'outline'}
+                  onClick={toggleSpeechToText}
+                  disabled={!isSupported}
+                  className={isListening ? 'animate-pulse' : ''}
+                >
+                  {isListening ? <MicOff className="h-4 w-4 mr-1" /> : <Mic className="h-4 w-4 mr-1" />}
+                  {isListening ? 'Stop' : 'Voice'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isSupported ? 'Click to dictate code with your voice' : 'Speech recognition not supported in this browser'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Code Stopper Toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={codeStopperEnabled ? 'secondary' : 'outline'}
+                  onClick={() => setCodeStopperEnabled(!codeStopperEnabled)}
+                >
+                  {codeStopperEnabled ? <Shield className="h-4 w-4 mr-1" /> : <ShieldOff className="h-4 w-4 mr-1" />}
+                  Stopper
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{codeStopperEnabled ? 'Code Stopper is ON - validates syntax on Enter' : 'Code Stopper is OFF - no validation'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Right Section */}
@@ -336,7 +407,10 @@ export function CompilerLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={70} minSize={30}>
-              <CodeEditor />
+              <CodeEditor 
+                ref={editorRef}
+                codeStopperEnabled={codeStopperEnabled}
+              />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={30} minSize={15}>
