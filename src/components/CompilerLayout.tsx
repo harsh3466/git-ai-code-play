@@ -36,7 +36,8 @@ import { cn } from '@/lib/utils';
 import { languages, getLanguageById } from '@/lib/languages';
 import { Language } from '@/types/compiler';
 import { compileAndRun, JUDGE0_LANGUAGES } from '@/services/judge0';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { speechToCode, executeVoiceCommand } from '@/services/aiService';
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -48,6 +49,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 export function CompilerLayout() {
   const { 
@@ -74,9 +76,10 @@ export function CompilerLayout() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stdinInput, setStdinInput] = useState('');
   const [codeStopperEnabled, setCodeStopperEnabled] = useState(true);
+  const [isProcessingSpeech, setIsProcessingSpeech] = useState(false);
   
   const editorRef = useRef<CodeEditorRef>(null);
-  const { isListening, transcript, isSupported, startListening, stopListening, resetTranscript, error: speechError } = useSpeechToText();
+  const { isRecording, audioBlob, startRecording, stopRecording, resetRecording, error: recordingError } = useAudioRecorder();
 
   const activeTab = tabs.find(t => t.id === activeTabId);
 
@@ -190,19 +193,39 @@ export function CompilerLayout() {
     localStorage.setItem('judge0_api_key', key);
   };
 
-  // Handle speech-to-text transcript insertion
+  // Handle audio recording for AI speech-to-code
   useEffect(() => {
-    if (transcript && editorRef.current?.insertTextAtCursor) {
-      editorRef.current.insertTextAtCursor(transcript);
-      resetTranscript();
-    }
-  }, [transcript, resetTranscript]);
+    const processAudio = async () => {
+      if (audioBlob && !isProcessingSpeech && activeTab) {
+        setIsProcessingSpeech(true);
+        try {
+          const result = await speechToCode(audioBlob, activeTab.language);
+          if (result.code && editorRef.current) {
+            editorRef.current.insertTextAtCursor(result.code);
+            toast.success('Code generated from speech!');
+            addConsoleOutput({ 
+              type: 'info', 
+              content: `🎤 Heard: "${result.transcript}"\n📝 Generated code inserted` 
+            });
+          }
+        } catch (error) {
+          console.error('Speech to code error:', error);
+          toast.error('Failed to convert speech to code');
+        } finally {
+          setIsProcessingSpeech(false);
+          resetRecording();
+        }
+      }
+    };
+    processAudio();
+  }, [audioBlob, activeTab, addConsoleOutput, isProcessingSpeech, resetRecording]);
 
-  const toggleSpeechToText = () => {
-    if (isListening) {
-      stopListening();
+  const toggleSpeechToCode = async () => {
+    if (isRecording) {
+      stopRecording();
     } else {
-      startListening();
+      await startRecording();
+      toast.info('🎤 Listening... Speak your code command');
     }
   };
 
@@ -265,23 +288,23 @@ export function CompilerLayout() {
             </Button>
           )}
 
-          {/* Speech to Text */}
+          {/* AI Speech to Code */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="sm"
-                  variant={isListening ? 'destructive' : 'outline'}
-                  onClick={toggleSpeechToText}
-                  disabled={!isSupported}
-                  className={isListening ? 'animate-pulse' : ''}
+                  variant={isRecording || isProcessingSpeech ? 'destructive' : 'outline'}
+                  onClick={toggleSpeechToCode}
+                  disabled={isProcessingSpeech}
+                  className={isRecording ? 'animate-pulse' : ''}
                 >
-                  {isListening ? <MicOff className="h-4 w-4 mr-1" /> : <Mic className="h-4 w-4 mr-1" />}
-                  {isListening ? 'Stop' : 'Voice'}
+                  {isRecording ? <MicOff className="h-4 w-4 mr-1" /> : <Mic className="h-4 w-4 mr-1" />}
+                  {isProcessingSpeech ? 'Processing...' : isRecording ? 'Stop' : 'Voice AI'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{isSupported ? 'Click to dictate code with your voice' : 'Speech recognition not supported in this browser'}</p>
+                <p>Click to speak code commands - AI will convert to code</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
