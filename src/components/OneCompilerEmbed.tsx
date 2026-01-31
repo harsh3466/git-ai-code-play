@@ -36,6 +36,9 @@ export function OneCompilerEmbed({ language, code, onCodeChange }: OneCompilerEm
   embedUrl.searchParams.set('hideNewFileOption', 'true');
   embedUrl.searchParams.set('codeChangeEvent', 'true');
   embedUrl.searchParams.set('listenToEvents', 'true');
+  embedUrl.searchParams.set('disableAutoComplete', 'false');
+  embedUrl.searchParams.set('hideStdin', 'false');
+  embedUrl.searchParams.set('hideRunButton', 'false');
 
   // Handle code change events from OneCompiler
   const handleMessage = useCallback((event: MessageEvent) => {
