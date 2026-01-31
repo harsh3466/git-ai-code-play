@@ -1,4 +1,4 @@
-export type Language = 'python' | 'javascript' | 'typescript' | 'java' | 'cpp' | 'c';
+export type Language = 'python' | 'javascript' | 'typescript' | 'java' | 'cpp' | 'c' | 'go' | 'rust';
 
 export interface LanguageConfig {
   id: Language;

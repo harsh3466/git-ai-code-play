@@ -20,12 +20,10 @@ export function AIChatPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
   const handleSend = async () => {
@@ -134,7 +132,7 @@ export function AIChatPanel() {
       )}
 
       {/* Chat Messages */}
-      <ScrollArea className="flex-1 p-3" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-3">
         {chatMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
             <Bot className="h-10 w-10 text-muted-foreground mb-3" />
@@ -176,6 +174,7 @@ export function AIChatPanel() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>
