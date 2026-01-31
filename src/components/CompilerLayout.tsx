@@ -1,66 +1,133 @@
-import { useState, useEffect } from 'react';
-import { Toolbar } from '@/components/Toolbar';
+import { useState } from 'react';
+import { 
+  PanelLeftClose, 
+  PanelLeft, 
+  PanelRightClose, 
+  PanelRight,
+  Moon,
+  Sun,
+  Sparkles,
+  Github,
+  ExternalLink,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { GitHubSidebar } from '@/components/GitHubSidebar';
 import { AIChatPanel } from '@/components/AIChatPanel';
-import { ConsolePanel } from '@/components/ConsolePanel';
-import { CodeEditor } from '@/components/CodeEditor';
-import { EditorTabs } from '@/components/EditorTabs';
 import { useEditorStore } from '@/stores/editorStore';
+import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { languages } from '@/lib/languages';
+import { Language } from '@/types/compiler';
 
 export function CompilerLayout() {
   const { 
     leftSidebarOpen, 
     rightSidebarOpen,
-    tabs,
-    activeTabId,
-    setActiveTab 
+    toggleLeftSidebar,
+    toggleRightSidebar,
+    fontSize,
   } = useEditorStore();
+  
+  const { theme, toggleTheme } = useTheme();
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>('python');
 
-  const [consoleHeight, setConsoleHeight] = useState(200);
-  const [isResizing, setIsResizing] = useState(false);
-
-  // Set initial active tab
-  useEffect(() => {
-    if (!activeTabId && tabs.length > 0) {
-      setActiveTab(tabs[0].id);
-    }
-  }, [activeTabId, tabs, setActiveTab]);
-
-  const handleMouseDown = () => {
-    setIsResizing(true);
+  // Build OneCompiler embed URL
+  const buildEmbedUrl = () => {
+    const url = new URL(`https://onecompiler.com/embed/${selectedLanguage}`);
+    url.searchParams.set('theme', theme === 'dark' ? 'dark' : 'light');
+    url.searchParams.set('fontSize', fontSize.toString());
+    url.searchParams.set('hideTitle', 'true');
+    url.searchParams.set('availableLanguages', 'python,javascript,typescript,java,cpp,c,go,rust');
+    return url.toString();
   };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isResizing) return;
-    const newHeight = window.innerHeight - e.clientY - 48; // 48px for toolbar
-    setConsoleHeight(Math.max(100, Math.min(400, newHeight)));
-  };
-
-  const handleMouseUp = () => {
-    setIsResizing(false);
-  };
-
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isResizing]);
 
   const handleFileSelect = (path: string, content: string) => {
     console.log('File selected:', path, content);
-    // In a real app, this would add the file to tabs
+    // Detect language from extension
+    const ext = path.split('.').pop();
+    const langMap: Record<string, Language> = {
+      py: 'python',
+      js: 'javascript',
+      ts: 'typescript',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c',
+      go: 'go',
+      rs: 'rust',
+    };
+    if (ext && langMap[ext]) {
+      setSelectedLanguage(langMap[ext]);
+    }
   };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
-      {/* Toolbar */}
-      <Toolbar />
+      {/* Minimal Toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
+        {/* Left Section */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleLeftSidebar}
+            title={leftSidebarOpen ? 'Hide GitHub sidebar' : 'Show GitHub sidebar'}
+          >
+            {leftSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+          </Button>
+
+          {/* Logo */}
+          <div className="flex items-center gap-2 px-2">
+            <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
+              <span className="text-xs font-bold text-primary-foreground">C</span>
+            </div>
+            <span className="font-semibold text-sm hidden sm:block">CodeCompiler</span>
+          </div>
+
+          {/* Language Quick Select */}
+          <div className="hidden md:flex items-center gap-1 ml-4">
+            {languages.map((lang) => (
+              <Button
+                key={lang.id}
+                variant={selectedLanguage === lang.id ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setSelectedLanguage(lang.id)}
+                title={lang.name}
+              >
+                <span className="mr-1">{lang.icon}</span>
+                <span className="hidden lg:inline">{lang.name}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Center - Powered by */}
+        <a 
+          href="https://onecompiler.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Powered by OneCompiler
+          <ExternalLink className="h-3 w-3" />
+        </a>
+
+        {/* Right Section */}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle Theme">
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleRightSidebar}
+            title={rightSidebarOpen ? 'Hide AI panel' : 'Show AI panel'}
+          >
+            {rightSidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -74,26 +141,15 @@ export function CompilerLayout() {
           {leftSidebarOpen && <GitHubSidebar onFileSelect={handleFileSelect} />}
         </div>
 
-        {/* Editor Area */}
+        {/* Main Editor - OneCompiler Embed */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Editor */}
-          <div className="flex-1 flex flex-col min-h-0" style={{ height: `calc(100% - ${consoleHeight}px)` }}>
-            <EditorTabs />
-            <div className="flex-1 bg-editor">
-              <CodeEditor />
-            </div>
-          </div>
-
-          {/* Resize Handle */}
-          <div
-            className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
-            onMouseDown={handleMouseDown}
+          <iframe
+            key={`${selectedLanguage}-${theme}-${fontSize}`}
+            src={buildEmbedUrl()}
+            className="w-full h-full border-0"
+            title="OneCompiler Editor"
+            allow="clipboard-read; clipboard-write"
           />
-
-          {/* Console */}
-          <div style={{ height: consoleHeight }}>
-            <ConsolePanel />
-          </div>
         </div>
 
         {/* Right Sidebar - AI Chat */}
