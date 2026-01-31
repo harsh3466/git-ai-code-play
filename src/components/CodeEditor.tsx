@@ -35,6 +35,23 @@ function CodeEditorComponent(
   const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
+  
+  // Refs to track current values in event handlers (avoids stale closures)
+  const codeStopperEnabledRef = useRef(codeStopperEnabled);
+  const activeTabRef = useRef(activeTab);
+  const onValidationErrorRef = useRef(onValidationError);
+  
+  useEffect(() => {
+    codeStopperEnabledRef.current = codeStopperEnabled;
+  }, [codeStopperEnabled]);
+  
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+  
+  useEffect(() => {
+    onValidationErrorRef.current = onValidationError;
+  }, [onValidationError]);
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
@@ -145,13 +162,15 @@ function CodeEditorComponent(
         return;
       }
       
-      if (codeStopperEnabled && e.keyCode === monaco.KeyCode.Enter) {
+      // Code Stopper - use refs for current values to avoid stale closures
+      if (codeStopperEnabledRef.current && e.keyCode === monaco.KeyCode.Enter) {
         const position = editor.getPosition();
         const model = editor.getModel();
+        const currentTab = activeTabRef.current;
         
-        if (position && model && activeTab) {
+        if (position && model && currentTab) {
           const lineContent = model.getLineContent(position.lineNumber);
-          const validation = validateLineStrictly(lineContent, activeTab.language);
+          const validation = validateLineStrictly(lineContent, currentTab.language);
 
           if (!validation.valid) {
             e.preventDefault();
@@ -159,7 +178,7 @@ function CodeEditorComponent(
             setValidationError(validation);
             setShowError(true);
             setAiExplanation(null);
-            onValidationError?.(validation);
+            onValidationErrorRef.current?.(validation);
           } else {
             setValidationError(null);
             setShowError(false);
